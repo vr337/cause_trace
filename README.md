@@ -73,6 +73,23 @@ npm run test    # 16 passed
 npm run build
 ```
 
+## 组4 已完成范围（T-19~T-25）
+
+- **T-19 异动注入**：`dbmock/injection.py` 按「时间窗 × 维度 × 指标 × 幅度」注入，
+  seed 固定可复现；INJECTION_CONFIG / INJECTION_TRUTH 落库作为 ground truth。
+- **T-20/T-21 场景闭环**：电商 GMV 下滑（抖音转化率 -35%）与快消利润率异动
+  （华东成本 -18%）两个场景，覆盖 生成 → 注入 → 检测 → 分解 → 因果 → 仿真 → 策略。
+- **T-22 三格式导出**：Markdown（Jinja 风格文本）、Excel（openpyxl，每章节一个 sheet）、
+  PDF（WeasyPrint，未安装时明确报 503）。
+- **T-23 审计治理**：只写不改的审计表，按用户/动作/request_id/时间检索，CSV 导出。
+- **T-24 配额与阈值**：global < role < user 三级配额；异动阈值按 dod/yoy/target 配置。
+- **T-25 密钥与认证**：scope 依赖注入、密钥只从环境变量读取、开发默认值自检
+  （完整的安全加固在组5 T-29）。
+
+```bash
+uv run pytest tests/test_injection.py tests/test_export.py tests/test_scenario_closure.py
+```
+
 ## 已知前提
 
 存量四工程（auth / data-agent / dbmock / insight-agent）不在本仓库内。T-02 的

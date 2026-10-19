@@ -7,7 +7,7 @@ PRD 1.3 要求「异动窗口前后 3 日内的事件 100% 匹配，时间/品�
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 MATCH_WINDOW_DAYS = 3
 
@@ -18,8 +18,8 @@ class BusinessEventInput:
 
     name: str
     event_type: str  # promo / operation / external / fault
-    window_start: datetime
-    window_end: datetime
+    window_start: datetime | date
+    window_end: datetime | date
     categories: tuple[str, ...] = ()
     channels: tuple[str, ...] = ()
     metrics: tuple[str, ...] = ()
@@ -52,18 +52,31 @@ class MatchedEvent:
         return self.overlap_days > 0 and (self.category_hit or self.channel_hit or self.metric_hit)
 
 
-def _intersect_days(a_start: datetime, a_end: datetime, b_start: datetime, b_end: datetime) -> int:
-    """两个时间窗的重合天数，按闭区间计算，不重合返回 0。"""
-    start = max(a_start, b_start)
-    end = min(a_end, b_end)
+def _as_date(value: datetime | date) -> date:
+    return value.date() if isinstance(value, datetime) else value
+
+
+def _intersect_days(
+    a_start: datetime | date,
+    a_end: datetime | date,
+    b_start: datetime | date,
+    b_end: datetime | date,
+) -> int:
+    """两个时间窗的重合天数，按闭区间计算，不重合返回 0。
+
+    事件日历允许只给日期（单日故障很常见），会话窗口给的是 datetime，
+    所以两边都统一到 date 再比。
+    """
+    start = max(_as_date(a_start), _as_date(b_start))
+    end = min(_as_date(a_end), _as_date(b_end))
     if end < start:
         return 0
-    return (end.date() - start.date()).days + 1
+    return (end - start).days + 1
 
 
 def match_events(
-    anomaly_start: datetime,
-    anomaly_end: datetime,
+    anomaly_start: datetime | date,
+    anomaly_end: datetime | date,
     events: list[BusinessEventInput],
     *,
     window_days: int = MATCH_WINDOW_DAYS,
