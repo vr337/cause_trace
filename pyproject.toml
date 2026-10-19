@@ -50,6 +50,6 @@ src = ["src", "tests"]
 known-first-party = ["cause_trace"]
 
 [tool.ruff.lint]
-# 只保留能发现真实缺陷的规则；行长与导入排序不阻塞 CI
+# 只保留能发现真实缺陷的规则；行长、导入排序与 FastAPI 的 Depends 惯用法不阻塞 CI
 select = ["E", "F", "B"]
-ignore = ["E501"]
+ignore = ["E501", "B008"]
