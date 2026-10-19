@@ -50,6 +50,29 @@ make test                     # 单元测试（含守恒性硬校验）
 - **T-11 会话与报告管理**：会话创建与阶段推进、假设/证据/仿真/因果链落库、
   报告组装（先过 Schema 再落库）、版本快照、批注。
 
+## 组3 已完成范围（T-12~T-18）
+
+前端位于 `web/`（React 19 + Vite 7 + TypeScript + Tailwind + zustand）。
+
+- **T-12 前端基架**：三栏工作台（280px / 1fr / 480px，折叠状态存 localStorage），
+  ECharts 按需注册 + 独立分包，TanStack Table。
+- **T-13 指标异动大盘**：KPI 卡片、异动列表（按跌幅降序）、一键发起归因。
+- **T-14 数据可视化**：因子贡献瀑布图（正负柱 + 合计对齐）、杜邦拆解树、敏感度曲线。
+- **T-15 动态透视表**：层级折叠、列头排序、差额涨跌染色。
+- **T-16 What-If 仿真器**：滑块即时反馈 + 200ms 节流重算 + 旧请求取消。
+- **T-17 报告组装与导出页**：七章节预览、批注、版本切换、导出状态。
+- **T-18 配置页**：业务事件日历（含窗口匹配校验）、指标字典（树 + 编辑面板）。
+
+前端状态按 Spec 12.1 分五个 store；WS 协议与重连退避在 `src/ws/`。
+
+```bash
+cd web
+npm install
+npm run dev     # http://localhost:5173，/api 已代理到 7300
+npm run test    # 16 passed
+npm run build
+```
+
 ## 已知前提
 
 存量四工程（auth / data-agent / dbmock / insight-agent）不在本仓库内。T-02 的
