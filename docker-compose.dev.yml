@@ -1,0 +1,35 @@
+# 本地开发依赖：MySQL + Redis。启动后执行 `uv run alembic upgrade head` 建表。
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: cause-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: cause
+      MYSQL_USER: cause
+      MYSQL_PASSWORD: causepass
+    ports:
+      - "3306:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: cause-redis
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mysql-data:
+  redis-data:
