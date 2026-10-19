@@ -1,0 +1,55 @@
+[project]
+name = "cause-trace"
+version = "0.1.0"
+description = "cause_trace 经营归因分析系统后端"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0",
+    "alembic>=1.14",
+    "pymysql>=1.1",
+    "sqlglot>=26.0",
+    "numpy>=2.0",
+    "jsonschema>=4.23",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.6",
+    "loguru>=0.7",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "httpx>=0.27",
+    "ruff>=0.8",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cause_trace"]
+
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+default = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cause_trace"]
+
+[tool.ruff.lint]
+# 只保留能发现真实缺陷的规则；行长与导入排序不阻塞 CI
+select = ["E", "F", "B"]
+ignore = ["E501"]
