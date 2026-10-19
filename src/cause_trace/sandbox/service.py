@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 
 from cause_trace.config import get_settings
 from cause_trace.errors import CauseTraceError
+from cause_trace.observability.metrics import SANDBOX_TASK_DURATION, SANDBOX_TASK_TOTAL
 from cause_trace.sandbox.quota import QuotaManager
 from cause_trace.sandbox.runner import DockerPythonRunner, ExecutionRequest, SqlRunner
 
@@ -67,4 +68,7 @@ def execute(payload: dict, x_internal_token: Annotated[str, Header()] = "") -> d
     finally:
         _quota.release(user_id)
 
+    # 任务结果按 status 打点，超时率与配额拒绝率直接由 Prometheus 算出（Spec 17.3）
+    SANDBOX_TASK_TOTAL.inc(status=result.status)
+    SANDBOX_TASK_DURATION.observe(result.duration_ms / 1000.0)
     return result.as_dict()
