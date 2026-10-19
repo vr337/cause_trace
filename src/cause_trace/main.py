@@ -1,7 +1,7 @@
 """insight-agent 归因主服务入口（端口 7300）。
 
-组2 补齐 Spec 6.1 的核心 API：会话创建与查询、多轮追问、指标字典、事件窗口
-匹配、假设阈值判定、What-If 推演与报告组装。
+覆盖 Spec 6.1 的核心 API：会话创建与查询、多轮追问、指标字典、事件窗口
+匹配、假设阈值判定、What-If 推演、报告组装与三格式导出，以及审计与配额治理。
 
 依赖 MySQL 的接口在数据库不可用时返回 503，不阻塞公式引擎、沙箱白名单等
 纯计算能力。
@@ -18,7 +18,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from fastapi import Response
+
 from cause_trace import __version__
+from cause_trace.audit import AuditEntry, export_csv, query, record
 from cause_trace.causal import BusinessEventInput, build_causal_links, match_events
 from cause_trace.dictionary import (
     MetricInput,
@@ -34,6 +37,17 @@ from cause_trace.dictionary import (
 from cause_trace.db import get_engine, get_session_factory
 from cause_trace.engine import Factor, Slice, decompose, shapley_decompose
 from cause_trace.errors import CauseTraceError, InvalidIntentError, ReportPayloadError
+from cause_trace.export import ExportUnavailableError, render
+from cause_trace.governance import (
+    GovernanceValidationError,
+    QuotaInput,
+    ThresholdInput,
+    is_anomalous,
+    list_thresholds,
+    resolve_quota,
+    upsert_quota,
+    upsert_threshold,
+)
 from cause_trace.orchestration import (
     AnalysisPlan,
     Hypothesis,
@@ -51,6 +65,7 @@ from cause_trace.session import (
     create_session,
     session_snapshot,
 )
+from cause_trace.security import SCOPE_ADMIN, SCOPE_READ, require_scope
 from cause_trace.simulation import ElasticityFit, simulate
 
 app = FastAPI(title="cause_trace insight-agent", version=__version__)
@@ -75,7 +90,7 @@ def _ensure_db() -> None:
     try:
         with get_engine().connect() as conn:
             conn.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
+    except (SQLAlchemyError, OSError) as exc:
         raise HTTPException(
             status_code=503, detail=f"数据库不可用：{exc.__class__.__name__}"
         ) from exc
@@ -494,3 +509,209 @@ def mount_metric_tree(
         "parent_id": node.parent_id,
         "level": node.level,
     }
+
+
+# ---------- T-22 报告三格式导出 ----------
+
+
+class ExportIn(BaseModel):
+    payload: dict
+    format: str = Field(pattern="^(markdown|excel|pdf)$")
+
+
+@app.post("/api/v1/reports/export")
+def export_report(payload: ExportIn, db: Session = Depends(get_db)) -> Response:
+    """三格式导出共用同一份 payload；PDF 依赖缺失时返回 503 并说明如何安装。"""
+    try:
+        artifact = render(payload.format, payload.payload)
+    except ExportUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ReportPayloadError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # 审计写失败不能让人拿不到已经渲染好的报告，降级为仅告警（Spec 8：沙箱/附属能力故障不阻塞主流程）
+    try:
+        record(
+            db,
+            AuditEntry(
+                action="report.export",
+                target_type="report",
+                detail={"format": payload.format, "filename": artifact.filename},
+            ),
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+
+    from urllib.parse import quote
+
+    return Response(
+        content=artifact.content,
+        media_type=artifact.media_type,
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{quote(artifact.filename)}",
+        },
+    )
+
+
+# ---------- T-23 审计治理 ----------
+
+
+@app.get("/api/v1/admin/audit")
+def audit_logs(
+    user_id: int | None = None,
+    action: str | None = None,
+    request_id: str | None = None,
+    limit: int = Query(default=100, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    _: object = Depends(require_scope(SCOPE_ADMIN)),
+) -> dict:
+    _ensure_db()
+    rows = query(
+        db, user_id=user_id, action=action, request_id=request_id, limit=limit, offset=offset
+    )
+    return {
+        "total": len(rows),
+        "items": [
+            {
+                "id": row.id,
+                "user_id": row.user_id,
+                "action": row.action,
+                "target_type": row.target_type,
+                "target_id": row.target_id,
+                "request_id": row.request_id,
+                "detail": row.detail,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.get("/api/v1/admin/audit/export")
+def audit_export(
+    user_id: int | None = None,
+    action: str | None = None,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_scope(SCOPE_ADMIN)),
+) -> Response:
+    _ensure_db()
+    csv_text = export_csv(db, user_id=user_id, action=action)
+    return Response(
+        content=csv_text.encode("utf-8-sig"),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="audit_log.csv"'},
+    )
+
+
+# ---------- T-24 配额与阈值 ----------
+
+
+class QuotaIn(BaseModel):
+    scope_type: str = Field(pattern="^(global|role|user)$")
+    scope_id: str
+    cpu_core: float | None = None
+    memory_mb: int | None = None
+    timeout_s: int | None = None
+    max_concurrent: int | None = None
+    max_rows: int | None = None
+    enabled: bool = True
+
+
+class ThresholdBody(BaseModel):
+    metric_id: int
+    rule_type: str = Field(pattern="^(dod|yoy|target)$")
+    threshold_value: float
+    alarm_level: str = Field(default="warning", pattern="^(info|warning|critical)$")
+    notify_channels: list[str] = []
+    enabled: bool = True
+
+
+@app.put("/api/v1/admin/sandbox-quota")
+def put_sandbox_quota(
+    payload: QuotaIn,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_scope(SCOPE_ADMIN)),
+) -> dict:
+    _ensure_db()
+    try:
+        quota = upsert_quota(db, QuotaInput(**payload.model_dump()))
+    except GovernanceValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    record(
+        db,
+        AuditEntry(
+            action="quota.update",
+            target_type="sandbox_quota",
+            detail={"scope_type": payload.scope_type, "scope_id": payload.scope_id},
+        ),
+    )
+    db.commit()
+    return {"id": quota.id, "scope_type": quota.scope_type, "scope_id": quota.scope_id}
+
+
+@app.get("/api/v1/admin/sandbox-quota/resolve")
+def get_resolved_quota(
+    user_id: str | None = None,
+    role: str | None = None,
+    db: Session = Depends(get_db),
+) -> dict:
+    _ensure_db()
+    return resolve_quota(db, user_id=user_id, role=role).as_dict()
+
+
+@app.post("/api/v1/admin/anomaly-thresholds")
+def put_threshold(
+    payload: ThresholdBody,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_scope(SCOPE_ADMIN)),
+) -> dict:
+    _ensure_db()
+    try:
+        threshold = upsert_threshold(
+            db,
+            ThresholdInput(
+                metric_id=payload.metric_id,
+                rule_type=payload.rule_type,
+                threshold_value=payload.threshold_value,
+                alarm_level=payload.alarm_level,
+                notify_channels=tuple(payload.notify_channels),
+                enabled=payload.enabled,
+            ),
+        )
+    except GovernanceValidationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    db.commit()
+    return {"id": threshold.id, "metric_id": threshold.metric_id}
+
+
+@app.get("/api/v1/anomaly-thresholds")
+def get_thresholds(
+    metric_id: int | None = None,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_scope(SCOPE_READ)),
+) -> dict:
+    _ensure_db()
+    return {
+        "thresholds": [
+            {
+                "id": item.id,
+                "metric_id": item.metric_id,
+                "rule_type": item.rule_type,
+                "threshold_value": float(item.threshold_value),
+                "alarm_level": item.alarm_level,
+                "notify_channels": item.notify_channels,
+                "enabled": item.enabled,
+            }
+            for item in list_thresholds(db, metric_id=metric_id)
+        ]
+    }
+
+
+@app.post("/api/v1/anomaly/check")
+def check_anomaly(change_rate: float, threshold_value: float) -> dict:
+    """按指标阈值判定异动（FR-24 计算内核）。"""
+    return {"is_anomalous": is_anomalous(change_rate, threshold_value)}
