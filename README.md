@@ -69,8 +69,11 @@ docker build -f Dockerfile -t cause-trace-api:test .
 
 # 容器内渲染 PDF 并校验体积/页数/文本
 bash scripts/e2e_pdf_container.sh
-# → PDF_BYTES=20296  pages=2  PASS
+# → PDF_BYTES=20297  pages=2  text chars=1151  PASS
 ```
+
+真实链路的产物样例存放在 [`docs/evidence/`](docs/evidence/)（Markdown / Excel / PDF），
+可直接打开查验，校验记录见该目录的 README。
 
 起完整服务时用 compose 的 `api` profile，导出产物挂到本地 `exports/`：
 
