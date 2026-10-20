@@ -3,6 +3,9 @@
 # PDF 导出依赖 WeasyPrint，它需要 Pango/Cairo 等原生库。Windows 开发机装这套
 # 依赖很痛苦，所以 PDF 渲染统一在这个容器里做：本地开发无需安装 GTK，
 # 只要 docker compose 起服务即可。
+# 用官方 uv 镜像拷二进制，避免在容器内 pip 下载 17MB 的 uv（国内网络很慢）
+FROM ghcr.io/astral-sh/uv:latest AS uv_bin
+
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1 \
@@ -39,15 +42,17 @@ ENV UV_DEFAULT_INDEX=${UV_INDEX_URL}
 
 WORKDIR /app
 
+COPY --from=uv_bin /uv /uvx /usr/local/bin/
 COPY pyproject.toml uv.lock ./
-RUN pip install --no-cache-dir uv \
-    && uv sync --frozen --no-dev --no-install-project
+# 连 dev 依赖一起装：容器内要跑 pytest 与 pypdf 做 PDF 渲染验收
+RUN uv sync --frozen --no-install-project
 
 COPY src ./src
 COPY scripts ./scripts
+COPY tests ./tests
 COPY migrations ./migrations
 COPY alembic.ini ./
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen
 
 # 导出产物目录：compose 会把它挂到宿主机 exports/，镜像里先建好避免挂载点被覆盖
 RUN mkdir -p /app/exports
