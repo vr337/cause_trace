@@ -1,4 +1,4 @@
-.PHONY: install test lint migrate migrate-reset seed up down sandbox-image api
+.PHONY: install test test-mysql lint migrate migrate-reset seed up down api sandbox sandbox-image api-image api-container test-pdf
 
 install:
 	uv sync --dev
@@ -41,3 +41,13 @@ sandbox:
 
 sandbox-image:
 	docker build -f Dockerfile.sandbox -t cause-trace-sandbox:latest .
+
+# PDF 渲染依赖 WeasyPrint 的 Pango/Cairo，统一在容器里做，本地不装 GTK
+api-image:
+	docker build -f Dockerfile -t cause-trace-api:test .
+
+api-container:
+	docker compose -f docker-compose.dev.yml --profile api up -d api
+
+test-pdf:
+	bash scripts/e2e_pdf_container.sh

@@ -19,6 +19,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      # WeasyPrint 的 Pango/Cairo 与中文字体：CI 里也真实验证 PDF 渲染，
+      # 而不是把 PDF 用例跳过
+      - name: 安装 PDF 渲染依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libpango-1.0-0 libpangoft2-1.0-0 libcairo2 libgdk-pixbuf-2.0-0 \
+            libffi8 shared-mime-info fonts-noto-cjk
+
       - name: 安装依赖
         run: uv sync --dev
 
