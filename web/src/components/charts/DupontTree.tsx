@@ -22,14 +22,14 @@ function TreeRow({ node, depth }: { node: TreeNode; depth: number }) {
   return (
     <div>
       <div
-        className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-ink-50"
+        className="flex items-center gap-2 rounded px-1 py-0.5 hover:bg-bg"
         style={{ paddingLeft: depth * 16 }}
       >
-        <span className="text-ink-300">{hasChildren ? "▾" : "·"}</span>
-        <span className={hasChildren ? "font-semibold text-ink-900" : "text-ink-700"}>
+        <span className="text-border-strong">{hasChildren ? "▾" : "·"}</span>
+        <span className={hasChildren ? "font-semibold text-text-primary" : "text-text-primary"}>
           {node.name}
         </span>
-        {node.value && <span className="ml-auto text-ink-500">{node.value}</span>}
+        {node.value && <span className="ml-auto text-text-secondary">{node.value}</span>}
       </div>
       {node.children?.map((child) => (
         <TreeRow key={`${depth}-${child.name}`} node={child} depth={depth + 1} />

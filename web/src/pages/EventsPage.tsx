@@ -11,10 +11,10 @@ const EVENT_TYPE_LABEL: Record<EventItem["event_type"], string> = {
 };
 
 const EVENT_TYPE_STYLE: Record<EventItem["event_type"], string> = {
-  promo: "bg-rise/10 text-rise",
-  operation: "bg-ink-100 text-ink-600",
+  promo: "danger-soft text-danger",
+  operation: "bg-surface-alt text-text-secondary",
   external: "bg-amber-50 text-amber-700",
-  fault: "bg-fall/10 text-fall",
+  fault: "success-soft text-success",
 };
 
 const DEMO_EVENTS: EventItem[] = [
@@ -85,11 +85,11 @@ export function EventsPage() {
           </div>
         </div>
 
-        <div className="card divide-y divide-ink-100">
+        <div className="card divide-y divide-surface-alt">
           {events.map((event) => (
             <div key={event.name} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3">
-                <span className="w-20 font-mono text-xs text-ink-500">
+                <span className="w-20 font-mono text-xs text-text-secondary">
                   {event.window_start.slice(5)}
                 </span>
                 <span className={`chip ${EVENT_TYPE_STYLE[event.event_type]}`}>
@@ -97,13 +97,13 @@ export function EventsPage() {
                 </span>
                 <div>
                   <p className="text-sm font-medium">{event.name}</p>
-                  <p className="text-xs text-ink-400">
+                  <p className="text-xs text-text-tertiary">
                     {event.categories.join(" / ") || "全品类"} ·{" "}
                     {event.metrics.join(" / ") || "全部指标"}
                   </p>
                 </div>
               </div>
-              <span className="text-xs text-ink-400">
+              <span className="text-xs text-text-tertiary">
                 {event.window_start} ~ {event.window_end}
               </span>
             </div>
@@ -120,8 +120,8 @@ export function EventsPage() {
                 <li key={item.name} className="flex items-center justify-between text-sm">
                   <span>{item.name}</span>
                   <span className="flex items-center gap-3 text-xs">
-                    <span className="text-ink-500">重合 {item.overlap_days} 天</span>
-                    <span className={item.is_causal ? "text-rise" : "text-ink-400"}>
+                    <span className="text-text-secondary">重合 {item.overlap_days} 天</span>
+                    <span className={item.is_causal ? "text-danger" : "text-text-tertiary"}>
                       {item.is_causal ? "进入因果链" : "仅时间重合"}
                     </span>
                   </span>

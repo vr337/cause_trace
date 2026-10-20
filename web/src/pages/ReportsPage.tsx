@@ -37,12 +37,12 @@ export function ReportsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold">8 月 GMV 下滑归因报告</h1>
-            <p className="mt-0.5 text-xs text-ink-400">状态：已发布 · 版本 v{activeVersion}</p>
+            <p className="mt-0.5 text-xs text-text-tertiary">状态：已发布 · 版本 v{activeVersion}</p>
           </div>
           <div className="flex gap-2">
             {versions.length > 1 && (
               <select
-                className="rounded border border-ink-200 bg-white px-2 py-1.5 text-xs"
+                className="rounded border border-border bg-white px-2 py-1.5 text-xs"
                 value={activeVersion}
                 onChange={(event) => setActiveVersion(Number(event.target.value))}
               >
@@ -67,14 +67,14 @@ export function ReportsPage() {
           </div>
         </div>
 
-        <article className="card divide-y divide-ink-100 px-5 py-4">
+        <article className="card divide-y divide-surface-alt px-5 py-4">
           {SECTION_TITLES.map((title, index) => (
             <section key={title} className="py-3">
               <h2 className="text-sm font-semibold">
-                <span className="mr-2 font-mono text-ink-400">{index + 1}</span>
+                <span className="mr-2 font-mono text-text-tertiary">{index + 1}</span>
                 {title}
               </h2>
-              <p className="mt-1 text-xs text-ink-500">
+              <p className="mt-1 text-xs text-text-secondary">
                 {index === 0 && "指标 GMV · 统计周期 08-12 ~ 08-18 · 基期：日环比 · 差异额 -¥1,432 万"}
                 {index === 1 && "访客数 -45% · 转化率 -32% · 客单价 -18% · 合计偏差 0"}
                 {index === 2 && "TOP 维度组合：抖音 / 手机数码 / 新客；转化率下滑 2.4pct"}
@@ -95,33 +95,33 @@ export function ReportsPage() {
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && submitAnnotation()}
               placeholder="选中文本添加批注，@ 同事…"
-              className="flex-1 rounded-md border border-ink-200 px-3 py-1.5 text-sm outline-none focus:border-ink-400"
+              className="flex-1 rounded-md border border-border px-3 py-1.5 text-sm outline-none focus:border-text-tertiary"
             />
             <button className="btn-primary" onClick={submitAnnotation}>
               添加
             </button>
           </div>
           <ul className="mt-3 space-y-1.5 text-xs">
-            {annotations.length === 0 && <li className="text-ink-400">暂无批注</li>}
+            {annotations.length === 0 && <li className="text-text-tertiary">暂无批注</li>}
             {annotations.map((annotation) => (
-              <li key={annotation.id} className="rounded border border-ink-200 px-2 py-1.5">
-                <span className="text-ink-500">
+              <li key={annotation.id} className="rounded border border-border px-2 py-1.5">
+                <span className="text-text-secondary">
                   {annotation.author} · v{annotation.version} · {annotation.anchor}
                 </span>
-                <p className="mt-0.5 text-ink-800">{annotation.content}</p>
+                <p className="mt-0.5 text-text-primary">{annotation.content}</p>
               </li>
             ))}
           </ul>
         </div>
 
         <div className="card flex items-center gap-3 p-4 text-xs">
-          <span className="text-ink-500">导出格式</span>
+          <span className="text-text-secondary">导出格式</span>
           {EXPORT_FORMATS.map((format) => (
-            <span key={format} className="rounded border border-ink-200 px-2 py-1">
+            <span key={format} className="rounded border border-border px-2 py-1">
               {format}
             </span>
           ))}
-          <span className="ml-auto text-ink-400">
+          <span className="ml-auto text-text-tertiary">
             {exportStatus === "rendering" && "正在渲染…"}
             {exportStatus === "done" && "导出完成（渲染服务在 T-22 接入）"}
             {exportStatus === "failed" && "导出失败"}

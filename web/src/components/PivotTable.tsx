@@ -35,7 +35,7 @@ export function PivotTable({ rows }: Props) {
         header: "维度",
         cell: ({ row }) => (
           <span
-            className={row.getCanExpand() ? "cursor-pointer font-medium" : "pl-4 text-ink-600"}
+            className={row.getCanExpand() ? "cursor-pointer font-medium" : "pl-4 text-text-secondary"}
             onClick={row.getToggleExpandedHandler()}
           >
             {row.getCanExpand() ? (row.getIsExpanded() ? "▾ " : "▸ ") : ""}
@@ -49,7 +49,7 @@ export function PivotTable({ rows }: Props) {
         cell: ({ getValue }) => {
           const value = getValue<number>();
           return (
-            <span className={value < 0 ? "text-fall" : "text-rise"}>
+            <span className={value < 0 ? "text-success" : "text-danger"}>
               {value.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
           );
@@ -66,7 +66,7 @@ export function PivotTable({ rows }: Props) {
         cell: ({ getValue }) => {
           const value = getValue<number>();
           return (
-            <span className={value < 0 ? "text-fall" : "text-rise"}>
+            <span className={value < 0 ? "text-success" : "text-danger"}>
               {value.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </span>
           );
@@ -91,7 +91,7 @@ export function PivotTable({ rows }: Props) {
   return (
     <table className="w-full text-xs">
       <thead>
-        <tr className="border-b border-ink-200 text-left text-ink-500">
+        <tr className="border-b border-border text-left text-text-secondary">
           {table.getHeaderGroups()[0].headers.map((header) => (
             <th
               key={header.id}
@@ -107,7 +107,7 @@ export function PivotTable({ rows }: Props) {
       </thead>
       <tbody>
         {table.getRowModel().rows.map((row) => (
-          <tr key={row.id} className="border-b border-ink-100 last:border-0">
+          <tr key={row.id} className="border-b border-surface-alt last:border-0">
             {row.getVisibleCells().map((cell) => (
               <td key={cell.id} className="py-1.5 pr-3">
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}

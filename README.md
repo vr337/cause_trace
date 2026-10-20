@@ -7,9 +7,31 @@
 ```bash
 cp .env.example .env          # 填数据库与只读数仓连接串
 uv sync --dev                 # 安装依赖
-docker compose -f docker-compose.dev.yml up -d   # MySQL + Redis
+make up                       # MySQL 8.4 + Redis 8（bind mount 到本地目录）
 make migrate                  # 建 cause 库表（Alembic）
 make test                     # 单元测试（含守恒性硬校验）
+```
+
+容器数据落在 `D:\Documents\Docker\volume\app\cause_trace\` 下的 `mysql/` 与 `redis/`，
+删除目录即可重置，不必 `docker volume prune`。
+
+`make migrate` 后建议灌一份种子数据（指标域、数据源、指标），否则接口会因外键
+约束返回 500：
+
+```bash
+docker exec -i cause-mysql mysql -ucause -pcausepass cause < scripts/seed_demo.sql
+```
+
+**真实数据库集成测试**（需另建一个空库，跑完自动 drop，不碰 `cause` 库）：
+
+```bash
+docker exec cause-mysql mysql -uroot -prootpass -e \
+  "CREATE DATABASE cause_it CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; \
+   GRANT ALL PRIVILEGES ON cause_it.* TO 'cause'@'%'; FLUSH PRIVILEGES;"
+
+CAUSE_TEST_MYSQL=1 \
+CAUSE_DATABASE_URL="mysql+pymysql://cause:causepass@127.0.0.1:3306/cause_it?charset=utf8mb4" \
+uv run pytest tests/test_integration_mysql.py
 ```
 
 ## 服务

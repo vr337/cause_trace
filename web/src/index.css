@@ -3,7 +3,26 @@
 @tailwind utilities;
 
 @layer base {
+  /* 与 docs/prototype/cause_trace_prototype.pen 的 variables 对齐，一处定义全局复用 */
   :root {
+    --color-bg: #f6f7f9;
+    --color-surface: #ffffff;
+    --color-surface-alt: #f1f5f9;
+    --color-border: #e2e8f0;
+    --color-border-strong: #cbd5e1;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #64748b;
+    --color-text-tertiary: #94a3b8;
+    --color-primary: #1d4ed8;
+    --color-primary-deep: #0b1f4b;
+    --color-primary-soft: #eff6ff;
+    --color-danger: #dc2626;
+    --color-danger-soft: #fef2f2;
+    --color-warning: #d97706;
+    --color-warning-soft: #fffbeb;
+    --color-success: #059669;
+    --color-success-soft: #ecfdf5;
+
     color-scheme: light;
   }
 
@@ -14,22 +33,22 @@
   }
 
   body {
-    @apply bg-ink-50 text-ink-900 antialiased;
+    @apply bg-bg font-sans text-text-primary antialiased;
     font-feature-settings: "tnum" 1;
   }
 }
 
 @layer components {
   .card {
-    @apply rounded-lg border border-ink-200 bg-white;
+    @apply rounded-lg border border-border bg-surface;
   }
 
   .card-title {
-    @apply text-sm font-semibold text-ink-900;
+    @apply text-sm font-semibold text-text-primary;
   }
 
   .metric-value {
-    @apply font-mono text-2xl font-semibold tracking-tight;
+    @apply text-[26px] font-semibold leading-none tracking-tight;
   }
 
   .chip {
@@ -41,14 +60,14 @@
   }
 
   .btn-primary {
-    @apply btn bg-ink-900 text-white hover:bg-ink-700;
+    @apply btn bg-primary text-white hover:bg-primary-deep;
   }
 
   .btn-ghost {
-    @apply btn border border-ink-200 bg-white text-ink-700 hover:bg-ink-50;
+    @apply btn border border-border bg-surface text-text-secondary hover:bg-surface-alt;
   }
 
   .input {
-    @apply w-full rounded-md border border-ink-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-ink-400 disabled:bg-ink-50;
+    @apply w-full rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-primary disabled:bg-surface-alt;
   }
 }

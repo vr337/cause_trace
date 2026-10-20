@@ -11,14 +11,14 @@ const NAV_ITEMS = [
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-full flex-col">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-ink-200 bg-white px-5">
+      <header className="flex h-14 shrsurface items-center justify-between border-b border-border bg-white px-5">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded bg-ink-900 font-mono text-xs font-bold text-white">
+            <span className="grid h-7 w-7 place-items-center rounded bg-text-primary font-mono text-xs font-bold text-white">
               ct
             </span>
             <span className="text-sm font-semibold">cause_trace</span>
-            <span className="text-xs text-ink-400">经营归因分析</span>
+            <span className="text-xs text-text-tertiary">经营归因分析</span>
           </div>
 
           <nav className="flex items-center gap-1">
@@ -29,7 +29,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 end={item.to === "/"}
                 className={({ isActive }) =>
                   `rounded px-3 py-1.5 text-sm transition-colors ${
-                    isActive ? "bg-ink-100 font-medium text-ink-900" : "text-ink-500 hover:text-ink-900"
+                    isActive ? "bg-surface-alt font-medium text-text-primary" : "text-text-secondary hover:text-text-primary"
                   }`
                 }
               >
@@ -40,10 +40,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="flex items-center gap-3">
-          <span className="rounded border border-ink-200 px-2 py-1 text-xs text-ink-600">
+          <span className="rounded border border-border px-2 py-1 text-xs text-text-secondary">
             电商经营域
           </span>
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-ink-200 text-xs font-medium text-ink-700">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-border text-xs font-medium text-text-primary">
             分
           </span>
         </div>
