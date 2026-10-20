@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import io
+import zlib
 
 import pytest
 from openpyxl import load_workbook
 
-from cause_trace.export import ExportUnavailableError, render, render_excel, render_markdown, render_pdf
+from cause_trace.export import render, render_excel, render_markdown, render_pdf
 from cause_trace.report import SECTION_DEFINITIONS, empty_section_payload
 
 META = {
@@ -85,19 +86,34 @@ def test_invalid_payload_is_rejected_before_export():
     assert "payload" in str(exc_info.value) or "章节" in str(exc_info.value)
 
 
-def test_pdf_reports_missing_dependency_clearly():
-    # WeasyPrint 未安装时应给出可操作提示，而不是静默产出损坏文件
-    try:
-        artifact = render_pdf(_payload())
-    except ExportUnavailableError as exc:
-        assert "weasyprint" in str(exc).lower()
-    else:
-        assert artifact.content.startswith(b"%PDF")
+def test_pdf_has_valid_header_and_non_trivial_size():
+    artifact = render_pdf(_payload())
+    assert artifact.content.startswith(b"%PDF-")
+    assert artifact.content.rstrip().endswith(b"%%EOF")
+    # 空白 PDF 只有几百字节，真实报告必须远超这个量级
+    assert len(artifact.content) > 800
 
 
-def test_render_dispatches_by_format():
-    for name in ("markdown", "excel"):
-        assert render(name, _payload()).content
+def test_pdf_contains_chinese_text_as_utf16_hex():
+    """中文必须先转 UTF-16BE 十六进制，否则 PDF 里是乱码。
+
+    内容流被 zlib 压缩过，所以先解压再断言。
+    """
+    artifact = render_pdf(_payload())
+    stream = artifact.content.split(b"stream\n", 1)[1].rsplit(b"\nendstream", 1)[0]
+    decompressed = zlib.decompress(stream)
+
+    title = "8 月 GMV 下滑归因报告"
+    hex_literal = f"<{title.encode('utf-16-be').hex().upper()}> Tj".encode()
+    assert hex_literal in decompressed
+
+
+def test_render_dispatches_all_three_formats():
+    expected_extension = {"markdown": ".md", "excel": ".xlsx", "pdf": ".pdf"}
+    for name, extension in expected_extension.items():
+        artifact = render(name, _payload())
+        assert artifact.content
+        assert artifact.filename.endswith(extension)
 
 
 def test_unknown_format_is_rejected():
@@ -105,11 +121,9 @@ def test_unknown_format_is_rejected():
         render("docx", _payload())
 
 
-def test_html_escaping_prevents_template_injection():
+def test_pdf_escaping_prevents_injection():
     payload = _payload()
     payload["meta"]["title"] = "<script>alert(1)</script>"
-    try:
-        artifact = render_pdf(payload)
-    except ExportUnavailableError:
-        pytest.skip("WeasyPrint 未安装")
-    assert b"<script>" not in artifact.content
+    artifact = render_pdf(payload)
+    # 括号与反斜杠在 PDF 内容流里是语法字符，必须转义
+    assert b"(alert" not in artifact.content.split(b"stream")[-1]

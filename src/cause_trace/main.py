@@ -61,8 +61,12 @@ from cause_trace.report.schema import schema_json, validate_report_payload
 from cause_trace.session import (
     SessionInput,
     SessionValidationError,
+    add_annotation,
     assemble_report,
     create_session,
+    diff_versions,
+    list_annotations,
+    list_versions,
     session_snapshot,
 )
 from cause_trace.observability import RequestContextMiddleware, configure_logging, render_prometheus
@@ -729,3 +733,90 @@ def get_thresholds(
 def check_anomaly(change_rate: float, threshold_value: float) -> dict:
     """按指标阈值判定异动（FR-24 计算内核）。"""
     return {"is_anomalous": is_anomalous(change_rate, threshold_value)}
+
+
+# ---------- T-22 报告协同：批注与版本对比 ----------
+
+
+class AnnotationIn(BaseModel):
+    anchor: str = Field(min_length=1)
+    content: str = Field(min_length=1)
+    version: int
+    user_id: int
+    mention_user_ids: list[int] = []
+
+
+@app.get("/api/v1/reports/{report_id}/annotations")
+def get_annotations(report_id: int, db: Session = Depends(get_db)) -> dict:
+    _ensure_db()
+    return {
+        "annotations": [
+            {
+                "id": item.id,
+                "anchor": item.anchor,
+                "content": item.content,
+                "version": item.version,
+                "created_by": item.created_by,
+                "mention_user_ids": item.mention_user_ids or [],
+                "status": item.status,
+            }
+            for item in list_annotations(db, report_id)
+        ]
+    }
+
+
+@app.post("/api/v1/reports/{report_id}/annotations", status_code=201)
+def create_annotation(
+    report_id: int,
+    payload: AnnotationIn,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_scope(SCOPE_READ)),
+) -> dict:
+    """批注绑定具体版本；@ 到的用户由通知层按 mention_user_ids 推送。"""
+    _ensure_db()
+    annotation = add_annotation(
+        db,
+        report_id=report_id,
+        anchor=payload.anchor,
+        content=payload.content,
+        version=payload.version,
+        user_id=payload.user_id,
+        mention_user_ids=payload.mention_user_ids,
+    )
+    db.commit()
+    return {
+        "id": annotation.id,
+        "anchor": annotation.anchor,
+        "version": annotation.version,
+        "mention_user_ids": annotation.mention_user_ids or [],
+    }
+
+
+@app.get("/api/v1/reports/{report_id}/versions")
+def get_report_versions(report_id: int, db: Session = Depends(get_db)) -> dict:
+    _ensure_db()
+    return {
+        "versions": [
+            {
+                "version": item.version,
+                "created_by": item.created_by,
+                "created_at": item.created_at.isoformat() if item.created_at else None,
+            }
+            for item in list_versions(db, report_id)
+        ]
+    }
+
+
+@app.get("/api/v1/reports/{report_id}/versions/diff")
+def get_report_version_diff(
+    report_id: int,
+    from_version: int = Query(alias="from"),
+    to_version: int = Query(alias="to"),
+    db: Session = Depends(get_db),
+) -> dict:
+    """历史版本对比：按章节 id 返回新增/修改/删除。"""
+    _ensure_db()
+    try:
+        return diff_versions(db, report_id, from_version, to_version)
+    except SessionValidationError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

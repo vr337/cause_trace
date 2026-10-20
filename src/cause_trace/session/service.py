@@ -228,6 +228,47 @@ def list_versions(session: Session, report_id: int) -> list[ReportVersion]:
     return list(session.scalars(stmt))
 
 
+def diff_versions(
+    session: Session, report_id: int, from_version: int, to_version: int
+) -> dict[str, Any]:
+    """对比两个版本的 payload，返回章节级的新增/修改/删除。
+
+    按章节 id 对齐再逐段比较：报告体量大，整段 JSON diff 对人不可读，
+    产品要的是「第 2 章因子表变了、第 4 章结论改了」这种粒度。
+    """
+    versions = {item.version: item for item in list_versions(session, report_id)}
+    for version in (from_version, to_version):
+        if version not in versions:
+            raise SessionValidationError(f"报告 {report_id} 不存在版本 v{version}")
+
+    old_sections = {s["id"]: s for s in (versions[from_version].payload or {}).get("sections", [])}
+    new_sections = {s["id"]: s for s in (versions[to_version].payload or {}).get("sections", [])}
+
+    added = [sid for sid in new_sections if sid not in old_sections]
+    removed = [sid for sid in old_sections if sid not in new_sections]
+    changed = [
+        sid
+        for sid in new_sections
+        if sid in old_sections and new_sections[sid].get("content") != old_sections[sid].get("content")
+    ]
+
+    return {
+        "report_id": report_id,
+        "from_version": from_version,
+        "to_version": to_version,
+        "added": added,
+        "removed": removed,
+        "changed": changed,
+        "title_changed": (versions[from_version].payload or {}).get("meta", {}).get("title")
+        != (versions[to_version].payload or {}).get("meta", {}).get("title"),
+        "unchanged": [
+            sid
+            for sid in new_sections
+            if sid in old_sections and new_sections[sid].get("content") == old_sections[sid].get("content")
+        ],
+    }
+
+
 def session_snapshot(session: Session, session_id: int) -> dict[str, Any]:
     """会话断点快照：阶段 + 假设 + 证据链摘要，写入 Redis（key 见 Spec 5.5）。"""
     entity = session.get(AttributionSession, session_id)

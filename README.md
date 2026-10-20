@@ -31,8 +31,24 @@ docker exec cause-mysql mysql -uroot -prootpass -e \
 
 CAUSE_TEST_MYSQL=1 \
 CAUSE_DATABASE_URL="mysql+pymysql://cause:causepass@127.0.0.1:3306/cause_it?charset=utf8mb4" \
-uv run pytest tests/test_integration_mysql.py
+uv run pytest tests/test_integration_mysql.py tests/test_e2e_closure.py
 ```
+
+## 全链路演示
+
+`scripts/warehouse_demo.sql` 建一张最小 `warehouse` 表与只读账号（真实数仓由 dbmock
+生成，不在本仓库），然后用演示脚本跑完整条归因链路：
+
+```bash
+docker exec -i cause-mysql mysql -uroot -prootpass < scripts/warehouse_demo.sql
+
+CAUSE_WAREHOUSE_READONLY_URL="mysql+pymysql://cause_ro:readonly_pass@127.0.0.1:3306/warehouse?charset=utf8mb4" \
+uv run python scripts/e2e_attribution_demo.py
+```
+
+脚本依次执行：沙箱只读 SQL 取数 → LMDI 拆解与守恒校验 → 假设生成 → 沙箱验证与
+置信度 → 前后 3 日事件匹配 → What-If 仿真 → 策略四要素 → 报告组装 → 三格式导出。
+产物写入 `exports/`。
 
 ## 服务
 
@@ -101,8 +117,14 @@ npm run build
   seed 固定可复现；INJECTION_CONFIG / INJECTION_TRUTH 落库作为 ground truth。
 - **T-20/T-21 场景闭环**：电商 GMV 下滑（抖音转化率 -35%）与快消利润率异动
   （华东成本 -18%）两个场景，覆盖 生成 → 注入 → 检测 → 分解 → 因果 → 仿真 → 策略。
-- **T-22 三格式导出**：Markdown（Jinja 风格文本）、Excel（openpyxl，每章节一个 sheet）、
-  PDF（WeasyPrint，未安装时明确报 503）。
+- **T-22 三格式导出**：Markdown（文本模板）、Excel（openpyxl，每章节一个 sheet）、
+  PDF（内置最小生成器，中文按 UTF-16BE 编码写入）。
+
+  > **PDF 选型偏差说明**：Spec ADR-07 原定 WeasyPrint，理由是「纯 Python 依赖」，
+  > 但它实际依赖 GTK/Pango/Cairo 原生运行时，Windows 开发机无法直接安装。
+  > 当前实现改为自带的最小 PDF 写入器：同样是服务端渲染、同样共用七章节 payload，
+  > 代价是排版精度低于 WeasyPrint（无图表、无分页样式）。若要换回 WeasyPrint，
+  > 只需替换 `render_pdf`，Markdown 与 Excel 不受影响。该选型属 Spec Q-B 待确认项。
 - **T-23 审计治理**：只写不改的审计表，按用户/动作/request_id/时间检索，CSV 导出。
 - **T-24 配额与阈值**：global < role < user 三级配额；异动阈值按 dod/yoy/target 配置。
 - **T-25 密钥与认证**：scope 依赖注入、密钥只从环境变量读取、开发默认值自检
