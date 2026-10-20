@@ -23,7 +23,7 @@ jobs:
         run: uv sync --dev
 
       - name: 代码风格检查
-        run: uv run ruff check src tests
+        run: uv run ruff check src tests scripts
 
       - name: 单元测试（守恒性硬校验）
         run: uv run pytest
