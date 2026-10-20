@@ -3,6 +3,27 @@
 # 数据用 bind mount 落到本地目录而不是具名卷，方便直接查看/清理库文件，
 # 备份时也能整目录拷贝。
 services:
+  # 归因主服务。PDF 导出依赖 WeasyPrint 的 Pango/Cairo，只在容器里可用，
+  # 所以本地开发也走这个服务，不要试图在 Windows 上装 GTK。
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cause-api
+    environment:
+      CAUSE_DATABASE_URL: mysql+pymysql://cause:causepass@mysql:3306/cause?charset=utf8mb4
+      CAUSE_WAREHOUSE_READONLY_URL: mysql+pymysql://cause_ro:readonly_pass@mysql:3306/warehouse?charset=utf8mb4
+      CAUSE_SANDBOX_INTERNAL_TOKEN: ${CAUSE_SANDBOX_INTERNAL_TOKEN:-dev-internal-token}
+    ports:
+      - "7300:7300"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    volumes:
+      # 导出产物落本地，方便直接查看
+      - ./exports:/app/exports
+    profiles: ["api"]
+
   mysql:
     image: mysql:8.4
     container_name: cause-mysql

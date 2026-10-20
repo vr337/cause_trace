@@ -42,19 +42,52 @@ uv run pytest tests/test_integration_mysql.py tests/test_e2e_closure.py
 ```bash
 docker exec -i cause-mysql mysql -uroot -prootpass < scripts/warehouse_demo.sql
 
-CAUSE_WAREHOUSE_READONLY_URL="mysql+pymysql://cause_ro:readonly_pass@127.0.0.1:3306/warehouse?charset=utf8mb4" \
-uv run python scripts/e2e_attribution_demo.py
+# 容器内跑（推荐：PDF 走 WeasyPrint，带排版与图表）
+docker run --rm --network host \
+  -v "$(pwd)/exports:/app/exports" \
+  -v "$(pwd)/scripts:/app/scripts:ro" \
+  -e CAUSE_WAREHOUSE_READONLY_URL="mysql+pymysql://cause_ro:readonly_pass@127.0.0.1:3306/warehouse?charset=utf8mb4" \
+  cause-trace-api:test python /app/scripts/e2e_attribution_demo.py
 ```
 
 脚本依次执行：沙箱只读 SQL 取数 → LMDI 拆解与守恒校验 → 假设生成 → 沙箱验证与
 置信度 → 前后 3 日事件匹配 → What-If 仿真 → 策略四要素 → 报告组装 → 三格式导出。
 产物写入 `exports/`。
 
+> 在 Windows 宿主机直接 `uv run` 也能跑完前七步，但第 8 步的 PDF 会因缺 Pango/Cairo
+> 返回 503。PDF 请在容器内生成，见下一节。
+
+## PDF 导出：容器化渲染
+
+**本地开发无需安装 GTK/Pango/Cairo。** WeasyPrint 依赖这些原生库，Windows 上安装
+很痛苦，所以 PDF 渲染统一放在后端 Docker 镜像里做（`Dockerfile` 已用 apt 装好
+`libpango-1.0-0`、`libpangoft2-1.0-0`、`libcairo2` 等，并预装中文字体）。
+
+```bash
+# 构建镜像（含 WeasyPrint 系统依赖）
+docker build -f Dockerfile -t cause-trace-api:test .
+
+# 容器内渲染 PDF 并校验体积/页数/文本
+bash scripts/e2e_pdf_container.sh
+# → PDF_BYTES=20296  pages=2  PASS
+```
+
+起完整服务时用 compose 的 `api` profile，导出产物挂到本地 `exports/`：
+
+```bash
+docker compose -f docker-compose.dev.yml --profile api up -d
+# 服务在 http://127.0.0.1:7300，PDF 导出走容器内的 WeasyPrint
+```
+
+在 Windows 宿主机直接 `uv run` 跑服务时，Markdown 与 Excel 导出正常；PDF 会返回
+503 并提示改用容器，这是有意为之——不静默降级成没有排版和图表的东西。
+
 ## 服务
 
 | 服务 | 端口 | 启动命令 |
 |------|------|---------|
 | insight-agent 归因主服务 | 7300 | `uv run uvicorn cause_trace.main:app --port 7300` |
+| 同上（容器，含 PDF 渲染） | 7300 | `docker compose -f docker-compose.dev.yml --profile api up -d` |
 | sandbox-runner 沙箱执行器 | 7400 | `uv run uvicorn cause_trace.sandbox.service:app --port 7400` |
 
 沙箱 Python 执行需要 Docker 与镜像：`make sandbox-image`。未安装 Docker 时 `/v1/execute`
@@ -118,13 +151,7 @@ npm run build
 - **T-20/T-21 场景闭环**：电商 GMV 下滑（抖音转化率 -35%）与快消利润率异动
   （华东成本 -18%）两个场景，覆盖 生成 → 注入 → 检测 → 分解 → 因果 → 仿真 → 策略。
 - **T-22 三格式导出**：Markdown（文本模板）、Excel（openpyxl，每章节一个 sheet）、
-  PDF（内置最小生成器，中文按 UTF-16BE 编码写入）。
-
-  > **PDF 选型偏差说明**：Spec ADR-07 原定 WeasyPrint，理由是「纯 Python 依赖」，
-  > 但它实际依赖 GTK/Pango/Cairo 原生运行时，Windows 开发机无法直接安装。
-  > 当前实现改为自带的最小 PDF 写入器：同样是服务端渲染、同样共用七章节 payload，
-  > 代价是排版精度低于 WeasyPrint（无图表、无分页样式）。若要换回 WeasyPrint，
-  > 只需替换 `render_pdf`，Markdown 与 Excel 不受影响。该选型属 Spec Q-B 待确认项。
+  PDF（WeasyPrint 渲染 HTML/CSS，含页眉页脚、章节分页与内联 SVG 瀑布图）。
 - **T-23 审计治理**：只写不改的审计表，按用户/动作/request_id/时间检索，CSV 导出。
 - **T-24 配额与阈值**：global < role < user 三级配额；异动阈值按 dod/yoy/target 配置。
 - **T-25 密钥与认证**：scope 依赖注入、密钥只从环境变量读取、开发默认值自检

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import zlib
 
 import pytest
 from openpyxl import load_workbook
@@ -86,31 +85,71 @@ def test_invalid_payload_is_rejected_before_export():
     assert "payload" in str(exc_info.value) or "章节" in str(exc_info.value)
 
 
+def _weasyprint_available() -> bool:
+    try:
+        import weasyprint  # noqa: F401
+    except Exception:  # 缺 Pango/Cairo 时 import 会抛 OSError
+        return False
+    return True
+
+
+requires_weasyprint = pytest.mark.skipif(
+    not _weasyprint_available(),
+    reason="本地无 Pango/Cairo，PDF 渲染在容器内验证（scripts/e2e_pdf_container.sh）",
+)
+
+
+@requires_weasyprint
 def test_pdf_has_valid_header_and_non_trivial_size():
     artifact = render_pdf(_payload())
     assert artifact.content.startswith(b"%PDF-")
     assert artifact.content.rstrip().endswith(b"%%EOF")
-    # 空白 PDF 只有几百字节，真实报告必须远超这个量级
-    assert len(artifact.content) > 800
+    # WeasyPrint 带 CSS 与字体的输出远大于纯文本 PDF（后者约 1.5KB）
+    assert len(artifact.content) > 10_000
 
 
-def test_pdf_contains_chinese_text_as_utf16_hex():
-    """中文必须先转 UTF-16BE 十六进制，否则 PDF 里是乱码。
-
-    内容流被 zlib 压缩过，所以先解压再断言。
-    """
+@requires_weasyprint
+def test_pdf_renders_chinese_and_pagination():
+    """WeasyPrint 会内嵌字体子集，中文与页脚分页标记应出现在 PDF 里。"""
     artifact = render_pdf(_payload())
-    stream = artifact.content.split(b"stream\n", 1)[1].rsplit(b"\nendstream", 1)[0]
-    decompressed = zlib.decompress(stream)
+    assert b"/FontFile2" in artifact.content or b"/FontFile3" in artifact.content
+    # 至少一页
+    assert b"/Type /Page" in artifact.content
 
-    title = "8 月 GMV 下滑归因报告"
-    hex_literal = f"<{title.encode('utf-16-be').hex().upper()}> Tj".encode()
-    assert hex_literal in decompressed
+
+def test_pdf_template_contains_css_and_svg():
+    """模板本身必须带 @page 分页规则与内联 SVG 图表，不依赖容器即可断言。"""
+    from cause_trace.export.pdf_template import build_report_html
+    from cause_trace.report import empty_section_payload
+
+    payload = empty_section_payload(
+        {
+            "title": "模板测试",
+            "domain_id": 1,
+            "metric_id": 1,
+            "window_start": "2026-08-12",
+            "window_end": "2026-08-18",
+            "baseline": "dod",
+        },
+        {
+            "factor_contribution": {
+                "contributions": [
+                    {"factor": "抖音", "contribution": -100.0, "contribution_rate": -0.5, "direction": "down"}
+                ]
+            }
+        },
+    )
+    html = build_report_html(payload)
+    assert "@page" in html
+    assert "counter(page)" in html
+    assert "<svg" in html
 
 
 def test_render_dispatches_all_three_formats():
     expected_extension = {"markdown": ".md", "excel": ".xlsx", "pdf": ".pdf"}
     for name, extension in expected_extension.items():
+        if name == "pdf" and not _weasyprint_available():
+            continue
         artifact = render(name, _payload())
         assert artifact.content
         assert artifact.filename.endswith(extension)
@@ -121,9 +160,23 @@ def test_unknown_format_is_rejected():
         render("docx", _payload())
 
 
-def test_pdf_escaping_prevents_injection():
-    payload = _payload()
-    payload["meta"]["title"] = "<script>alert(1)</script>"
-    artifact = render_pdf(payload)
-    # 括号与反斜杠在 PDF 内容流里是语法字符，必须转义
-    assert b"(alert" not in artifact.content.split(b"stream")[-1]
+def test_html_template_escapes_user_input():
+    """用户输入进 HTML 前必须转义，防止模板注入（Spec 16.4）。"""
+    from cause_trace.export.pdf_template import build_report_html
+    from cause_trace.report import empty_section_payload
+
+    payload = empty_section_payload(
+        {
+            "title": "<script>alert(1)</script>",
+            "domain_id": 1,
+            "metric_id": 1,
+            "window_start": "2026-08-12",
+            "window_end": "2026-08-18",
+            "baseline": "dod",
+        },
+        {"background": {"summary": "<img src=x onerror=alert(1)>"}},
+    )
+    html = build_report_html(payload)
+    assert "<script>alert(1)</script>" not in html
+    assert "&lt;script&gt;" in html
+    assert "<img src=x" not in html
