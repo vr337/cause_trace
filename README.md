@@ -90,6 +90,22 @@ npm run build
 uv run pytest tests/test_injection.py tests/test_export.py tests/test_scenario_closure.py
 ```
 
+## 组5 已完成范围（T-26~T-29）
+
+- **T-26 前端状态落地**：已在组3 完成（五域 store + WS 增量渲染协议）。
+- **T-27 Prompt 工程**：入口清洗（截断 + 角色标记剥离）、分隔符隔离、
+  Schema 校验与规则模板降级（组2 的 `orchestration/intent.py`）。
+- **T-28 可观测性**：loguru JSON 日志（request_id/session_id/hypothesis_id）、
+  `/metrics` 暴露 12 组 Prometheus 指标、8 条告警规则
+  （`deploy/prometheus-rules.yml`，守恒失败为 Critical）。
+- **T-29 安全加固**：scope 鉴权、密钥只读环境变量、Prompt 注入清洗、
+  手机/邮箱/姓名/地址脱敏、业务线越权校验、LIKE 通配符转义。
+
+```bash
+uv run pytest tests/test_observability.py tests/test_security.py
+curl http://127.0.0.1:7300/metrics
+```
+
 ## 已知前提
 
 存量四工程（auth / data-agent / dbmock / insight-agent）不在本仓库内。T-02 的

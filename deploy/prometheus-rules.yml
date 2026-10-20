@@ -1,0 +1,59 @@
+groups:
+  - name: cause_trace
+    rules:
+      - alert: ConservationCheckFailed
+        expr: increase(conservation_check_failed_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 守恒校验失败，暂停相关会话出图
+      - alert: SandboxTimeoutRate
+        expr: rate(sandbox_task_total{status="timeout"}[10m]) / rate(sandbox_task_total[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 沙箱超时率超过 5%，检查数仓负载
+      - alert: SandboxQuotaExceededRate
+        expr: rate(sandbox_task_total{status="quota_exceeded"}[10m]) / rate(sandbox_task_total[10m]) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 沙箱配额拒绝率超过 10%，评估配额调整
+      - alert: LlmFailureRate
+        expr: rate(llm_call_total{status="failed"}[10m]) / rate(llm_call_total[10m]) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: LLM 失败率超过 10%
+      - alert: LlmP95Latency
+        expr: histogram_quantile(0.95, rate(llm_call_duration_seconds_bucket[10m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: LLM P95 延迟超过 30s
+      - alert: ServiceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 服务不可用
+      - alert: SessionFailedRate
+        expr: rate(cause_session_total{status="failed"}[10m]) / rate(cause_session_total[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 会话失败率超过 5%
+      - alert: ReportExportFailureRate
+        expr: rate(report_export_total{status="failed"}[10m]) / rate(report_export_total[10m]) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 报告导出失败率超过 10%

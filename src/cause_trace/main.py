@@ -65,10 +65,15 @@ from cause_trace.session import (
     create_session,
     session_snapshot,
 )
+from cause_trace.observability import RequestContextMiddleware, configure_logging, render_prometheus
+from cause_trace.observability.metrics import REPORT_EXPORT_TOTAL, SESSION_TOTAL
 from cause_trace.security import SCOPE_ADMIN, SCOPE_READ, require_scope
 from cause_trace.simulation import ElasticityFit, simulate
 
+configure_logging()
+
 app = FastAPI(title="cause_trace insight-agent", version=__version__)
+app.add_middleware(RequestContextMiddleware)
 
 register_tree_guards()
 
@@ -76,6 +81,12 @@ register_tree_guards()
 @app.exception_handler(CauseTraceError)
 async def _cause_trace_error_handler(_: Request, exc: CauseTraceError) -> JSONResponse:
     return JSONResponse(status_code=exc.http_status, content=exc.to_dict())
+
+
+@app.get("/metrics")
+def metrics_endpoint() -> Response:
+    """Prometheus 抓取端点（Spec 17.2）。"""
+    return Response(content=render_prometheus(), media_type="text/plain; version=0.0.4")
 
 
 def get_db() -> Session:
@@ -138,6 +149,7 @@ def create_attribution_session(payload: SessionCreateIn, db: Session = Depends(g
     except (InvalidIntentError, SessionValidationError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     db.commit()
+    SESSION_TOTAL.inc(status="running")
 
     return {
         "session_id": entity.id,
@@ -530,6 +542,8 @@ def export_report(payload: ExportIn, db: Session = Depends(get_db)) -> Response:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    REPORT_EXPORT_TOTAL.inc(format=payload.format)
 
     # 审计写失败不能让人拿不到已经渲染好的报告，降级为仅告警（Spec 8：沙箱/附属能力故障不阻塞主流程）
     try:
