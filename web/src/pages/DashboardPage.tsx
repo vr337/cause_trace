@@ -46,15 +46,24 @@ export function DashboardPage() {
     <div className="h-full overflow-auto p-5">
       <div className="mx-auto max-w-7xl space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">指标异动大盘</h1>
+          <div>
+            <h1 className="text-lg font-semibold">指标异动大盘</h1>
+            <p className="mt-0.5 text-xs text-text-tertiary">
+              异常指标按跌幅降序，点击「发起智能归因」进入工作台
+            </p>
+          </div>
           <div className="flex gap-2 text-xs">
-            <select className="rounded border border-ink-200 bg-white px-2 py-1.5">
-              <option>电商经营域</option>
-              <option>快消经营域</option>
+            <select className="input w-auto">
+              <option>指标域：电商域</option>
+              <option>指标域：快消域</option>
             </select>
-            <select className="rounded border border-ink-200 bg-white px-2 py-1.5">
-              <option>近 7 天</option>
-              <option>近 30 天</option>
+            <select className="input w-auto">
+              <option>业务线：全部</option>
+              <option>业务线：自营</option>
+            </select>
+            <select className="input w-auto">
+              <option>时间范围：近 30 天</option>
+              <option>时间范围：近 7 天</option>
             </select>
           </div>
         </div>
@@ -63,14 +72,14 @@ export function DashboardPage() {
           {METRICS.map((metric) => (
             <div key={metric.name} className="card p-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-ink-500">{metric.name}</span>
-                {metric.abnormal && (
-                  <span className="chip bg-rise/10 text-rise">异动</span>
-                )}
+                <span className="text-xs text-text-secondary">{metric.name}</span>
+                {metric.abnormal && <span className="chip danger-soft text-danger">异动</span>}
               </div>
-              <p className="metric-value mt-2">{metric.value}</p>
+              <p className="metric-value mt-3">{metric.value}</p>
               <p
-                className={`mt-1 text-xs ${metric.change.startsWith("-") ? "text-fall" : "text-rise"}`}
+                className={`mt-2 text-xs font-medium ${
+                  metric.change.startsWith("-") ? "text-success" : "text-danger"
+                }`}
               >
                 日环比 {metric.change}
               </p>
@@ -78,46 +87,56 @@ export function DashboardPage() {
           ))}
         </div>
 
-        <div className="card">
-          <div className="flex items-center justify-between border-b border-ink-200 px-4 py-3">
-            <span className="card-title">异动指标列表</span>
-            <span className="text-xs text-ink-400">按跌幅降序</span>
+        <div className="grid grid-cols-[1fr_470px] gap-3">
+          <div className="card">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <span className="card-title">异动指标列表</span>
+              <span className="text-xs text-text-tertiary">按跌幅降序</span>
+            </div>
+            <ul>
+              {ANOMALIES.map((item) => (
+                <li
+                  key={item.metric}
+                  className="flex items-center justify-between border-b border-border px-4 py-3 last:border-0"
+                >
+                  <div className="flex items-center gap-4">
+                    <span className="w-24 text-sm font-medium">{item.metric}</span>
+                    <span className="text-xs font-medium text-success">日环比 {item.change}</span>
+                    <span className="text-xs text-text-tertiary">异动开始 {item.startedAt}</span>
+                  </div>
+                  <button className="btn-primary" onClick={() => startAttribution(item.metricId)}>
+                    发起智能归因
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul>
-            {ANOMALIES.map((item) => (
-              <li
-                key={item.metric}
-                className="flex items-center justify-between border-b border-ink-100 px-4 py-3 last:border-0"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="w-24 text-sm font-medium">{item.metric}</span>
-                  <span className="text-xs text-fall">日环比 {item.change}</span>
-                  <span className="text-xs text-ink-400">异动开始 {item.startedAt}</span>
-                </div>
-                <button className="btn-primary" onClick={() => startAttribution(item.metricId)}>
-                  发起智能归因
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
 
-        <div className="card p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="card-title">异常指标趋势（近 30 天）</span>
-            <span className="text-xs text-ink-400">红点标记异动发生日</span>
-          </div>
-          <div className="flex h-32 items-end gap-1">
-            {Array.from({ length: 30 }).map((_, index) => {
-              const height = 40 + Math.sin(index / 3) * 18 + (index === 21 ? -30 : 0);
-              return (
-                <div
-                  key={index}
-                  className={`flex-1 rounded-t ${index === 21 ? "bg-rise" : "bg-ink-200"}`}
-                  style={{ height: `${Math.max(height, 8)}%` }}
-                />
-              );
-            })}
+          <div className="card flex flex-col p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="card-title">异常指标趋势（近 30 天）</span>
+              <span className="text-xs text-text-tertiary">红点标记异动发生日</span>
+            </div>
+            <div className="flex h-[230px] items-end gap-1">
+              {Array.from({ length: 30 }).map((_, index) => {
+                const height = 40 + Math.sin(index / 3) * 18 + (index === 21 ? -30 : 0);
+                return (
+                  <div
+                    key={index}
+                    className={`flex-1 rounded-t ${index === 21 ? "bg-danger" : "bg-border"}`}
+                    style={{ height: `${Math.max(height, 8)}%` }}
+                  />
+                );
+              })}
+            </div>
+            <div className="mt-2 flex justify-between text-[10px] text-text-tertiary">
+              <span>08-01</span>
+              <span>08-15</span>
+              <span>08-30</span>
+            </div>
+            <p className="mt-3 rounded bg-warning-soft px-2.5 py-2 text-xs text-text-secondary">
+              阈值：日环比跌幅超 10% 触发异动标识
+            </p>
           </div>
         </div>
       </div>

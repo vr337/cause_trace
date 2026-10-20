@@ -1,7 +1,10 @@
 # 本地开发依赖：MySQL + Redis。启动后执行 `uv run alembic upgrade head` 建表。
+#
+# 数据用 bind mount 落到本地目录而不是具名卷，方便直接查看/清理库文件，
+# 备份时也能整目录拷贝。
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.4
     container_name: cause-mysql
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
@@ -14,7 +17,7 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     volumes:
-      - mysql-data:/var/lib/mysql
+      - D:\Documents\Docker\volume\app\cause_trace\mysql:/var/lib/mysql
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
       interval: 5s
@@ -22,14 +25,10 @@ services:
       retries: 20
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: cause-redis
     ports:
       - "6380:6379"
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
-      - redis-data:/data
-
-volumes:
-  mysql-data:
-  redis-data:
+      - D:\Documents\Docker\volume\app\cause_trace\redis:/data

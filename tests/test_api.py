@@ -187,8 +187,18 @@ def test_report_validate_rejects_missing_section():
     assert response.status_code == 422
 
 
-def test_session_endpoints_return_503_without_database():
-    # 未配置 MySQL 时应给出明确提示，而不是把连接异常透传给前端
+def test_session_endpoints_return_503_when_database_unavailable(monkeypatch):
+    """数据库不可用时给明确提示，而不是把连接异常透传给前端。
+
+    显式 mock 掉连接失败，避免测试结果取决于机器上是否起了 MySQL。
+    """
+    from sqlalchemy.exc import OperationalError
+
+    def _boom():
+        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+
+    monkeypatch.setattr("cause_trace.main.get_engine", lambda: type("E", (), {"connect": staticmethod(_boom)})())
+
     response = client.post(
         "/api/v1/sessions",
         json={"domain_id": 1, "metric_id": 1, "baseline": "dod"},

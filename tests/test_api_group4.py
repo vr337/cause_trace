@@ -56,16 +56,25 @@ def test_audit_requires_admin_scope():
 
 
 def test_admin_scope_grants_audit_access():
+    """admin scope 必须过鉴权这一关；能否读到数据取决于数据库状态。"""
     response = client.get(
         "/api/v1/admin/audit", headers={"X-User-Id": "1", "X-Scopes": "admin:cause"}
     )
-    # 无数据库时返回 503，而不是鉴权失败
-    assert response.status_code == 503
+    assert response.status_code != 401
+    assert response.status_code != 403
 
 
-def test_quota_resolution_without_database_returns_503():
-    response = client.get("/api/v1/admin/sandbox-quota/resolve")
-    assert response.status_code == 503
+def test_quota_resolution_returns_503_when_database_unavailable(monkeypatch):
+    from sqlalchemy.exc import OperationalError
+
+    def _boom():
+        raise OperationalError("SELECT 1", {}, Exception("connection refused"))
+
+    monkeypatch.setattr(
+        "cause_trace.main.get_engine",
+        lambda: type("E", (), {"connect": staticmethod(_boom)})(),
+    )
+    assert client.get("/api/v1/admin/sandbox-quota/resolve").status_code == 503
 
 
 def test_anomaly_check_uses_threshold():

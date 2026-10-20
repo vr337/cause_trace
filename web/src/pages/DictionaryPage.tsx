@@ -46,7 +46,7 @@ export function DictionaryPage() {
       <aside className="card flex flex-col overflow-auto p-3">
         <div className="mb-2 flex items-center justify-between">
           <span className="card-title">指标树</span>
-          <span className="text-xs text-ink-400">可拖拽调整层级</span>
+          <span className="text-xs text-text-tertiary">可拖拽调整层级</span>
         </div>
         <DupontTree root={DEMO_TREE} />
         <div className="mt-3 flex gap-2">
@@ -107,8 +107,8 @@ export function DictionaryPage() {
                 onClick={() => setSelected(metric)}
                 className={`rounded border px-2.5 py-1 text-xs ${
                   metric.id === selected.id
-                    ? "border-ink-900 bg-ink-900 text-white"
-                    : "border-ink-200 text-ink-600 hover:bg-ink-50"
+                    ? "border-text-primary bg-text-primary text-white"
+                    : "border-border text-text-secondary hover:bg-bg"
                 }`}
               >
                 {metric.name}
@@ -125,7 +125,7 @@ export function DictionaryPage() {
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
   return (
     <label className={`flex flex-col gap-1 ${wide ? "col-span-2" : ""}`}>
-      <span className="text-xs text-ink-500">{label}</span>
+      <span className="text-xs text-text-secondary">{label}</span>
       {children}
     </label>
   );

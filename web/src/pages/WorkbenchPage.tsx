@@ -105,26 +105,26 @@ export function WorkbenchPage() {
 
   return (
     <div
-      className="grid h-full gap-3 p-3"
-      style={{ gridTemplateColumns: collapsed ? "0px 1fr 480px" : "280px 1fr 480px" }}
+      className="grid h-full gap-[14px] p-[14px]"
+      style={{ gridTemplateColumns: collapsed ? "0px 1fr 480px" : "264px 1fr 480px" }}
     >
       {/* 左栏：会话与指标导航 */}
       {!collapsed && (
-        <aside className="card flex flex-col gap-4 overflow-auto p-3">
+        <aside className="card flex flex-col gap-[14px] overflow-auto p-[14px]">
           <button className="btn-primary w-full" onClick={() => setCollapsed(true)}>
             + 新建分析
           </button>
 
           <section>
-            <h2 className="mb-2 text-xs font-medium text-ink-500">会话列表</h2>
+            <h2 className="mb-2 text-xs font-medium text-text-secondary">会话列表</h2>
             <ul className="space-y-1 text-sm">
-              <li className="rounded bg-ink-100 px-2 py-1.5 font-medium">GMV 下滑归因</li>
-              <li className="rounded px-2 py-1.5 text-ink-600 hover:bg-ink-50">利润率异动</li>
+              <li className="rounded bg-surface-alt px-2 py-1.5 font-medium">GMV 下滑归因</li>
+              <li className="rounded px-2 py-1.5 text-text-secondary hover:bg-bg">利润率异动</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="mb-2 text-xs font-medium text-ink-500">当前指标拆解树</h2>
+            <h2 className="mb-2 text-xs font-medium text-text-secondary">当前指标拆解树</h2>
             <DupontTree
               root={{
                 name: "GMV",
@@ -138,7 +138,7 @@ export function WorkbenchPage() {
             />
           </section>
 
-          <p className="mt-auto rounded bg-ink-50 px-2 py-1.5 text-xs text-ink-500">
+          <p className="mt-auto rounded bg-warning-soft px-2.5 py-2 text-xs text-text-secondary">
             各因子贡献之和与总变动偏差 ≤ 1e-9
           </p>
         </aside>
@@ -146,7 +146,7 @@ export function WorkbenchPage() {
 
       {collapsed && (
         <button
-          className="flex h-full w-6 items-center justify-center rounded bg-ink-200 text-xs text-ink-600"
+          className="flex h-full w-6 items-center justify-center rounded bg-border text-xs text-text-secondary"
           onClick={() => setCollapsed(false)}
           aria-label="展开左栏"
         >
@@ -156,19 +156,19 @@ export function WorkbenchPage() {
 
       {/* 中栏：对话与探索 */}
       <section className="card flex min-h-0 flex-col">
-        <header className="flex items-center justify-between border-b border-ink-200 px-4 py-2.5">
+        <header className="flex h-[45px] shrink-0 items-center justify-between border-b border-border px-4">
           <span className="card-title">归因分析</span>
-          <span className="text-xs text-ink-400">当前阶段：{STAGE_LABELS[stage] ?? stage}</span>
+          <span className="text-xs text-text-tertiary">当前阶段：{STAGE_LABELS[stage] ?? stage}</span>
         </header>
 
-        <div className="flex-1 space-y-3 overflow-auto p-4">
+        <div className="flex-1 space-y-[14px] overflow-auto p-4">
           {messages.map((message) => (
             <div
               key={message.id}
               className={
                 message.role === "user"
-                  ? "ml-auto max-w-[80%] rounded-lg bg-ink-900 px-3 py-2 text-sm text-white"
-                  : "max-w-[85%] rounded-lg bg-ink-50 px-3 py-2 text-sm text-ink-800"
+                  ? "ml-auto max-w-[80%] rounded-lg bg-primary px-3 py-2 text-sm text-white"
+                  : "max-w-[85%] rounded-lg bg-surface-alt px-3.5 py-3 text-sm text-text-primary"
               }
             >
               {message.content}
@@ -177,21 +177,21 @@ export function WorkbenchPage() {
 
           {hypothesesView.length > 0 && (
             <div>
-              <h3 className="mb-2 text-xs font-medium text-ink-500">假设看板</h3>
+              <h3 className="mb-2 text-xs font-medium text-text-secondary">假设看板</h3>
               <HypothesisBoard hypotheses={hypothesesView} />
             </div>
           )}
 
-          {error && <p className="rounded bg-amber-50 px-3 py-2 text-xs text-amber-700">{error}</p>}
+          {error && <p className="rounded bg-warning-soft px-3 py-2 text-xs text-warning">{error}</p>}
         </div>
 
-        <div className="border-t border-ink-200 p-3">
+        <div className="border-t border-border px-[14px] py-3">
           <div className="flex gap-2">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => event.key === "Enter" && !busy && runAnalysis()}
-              className="flex-1 rounded-md border border-ink-200 px-3 py-2 text-sm outline-none focus:border-ink-400"
+              className="input"
               placeholder="描述你的归因需求…"
             />
             <button className="btn-primary" disabled={busy} onClick={runAnalysis}>
@@ -204,21 +204,21 @@ export function WorkbenchPage() {
       {/* 右栏：动态归因看板 */}
       <aside className="flex min-h-0 flex-col gap-3 overflow-auto">
         <div className="card p-3">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2.5 flex items-center justify-between">
             <span className="card-title">归因结论</span>
-            <span className="chip bg-ink-100 text-ink-500">实时</span>
+            <span className="chip bg-primary-soft text-primary">实时</span>
           </div>
           <ul className="space-y-1.5 text-sm">
             <li className="flex justify-between">
-              <span className="text-ink-600">主因</span>
+              <span className="text-text-secondary">主因</span>
               <span className="font-medium">{conclusions?.primary ?? "渠道结构恶化 68%"}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-ink-600">次因</span>
+              <span className="text-text-secondary">次因</span>
               <span className="font-medium">{conclusions?.secondary ?? "转化率下降 22%"}</span>
             </li>
             <li className="flex justify-between">
-              <span className="text-ink-600">外因</span>
+              <span className="text-text-secondary">外因</span>
               <span className="font-medium">{conclusions?.external ?? "竞品大促（事件 #12）"}</span>
             </li>
           </ul>
@@ -228,7 +228,7 @@ export function WorkbenchPage() {
           <div className="mb-2 flex items-center justify-between">
             <span className="card-title">因子贡献瀑布图</span>
             {decomposition && (
-              <span className="text-xs text-ink-400">
+              <span className="text-xs text-text-tertiary">
                 残差 {decomposition.residual.toExponential(1)}
               </span>
             )}
@@ -239,19 +239,19 @@ export function WorkbenchPage() {
               totalDelta={decomposition.total_delta}
             />
           ) : (
-            <p className="py-8 text-center text-xs text-ink-400">发起分析后生成</p>
+            <p className="py-8 text-center text-xs text-text-tertiary">发起分析后生成</p>
           )}
         </div>
 
         <div className="card p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="card-title">下钻透视表</span>
-            <span className="text-xs text-ink-400">按渠道</span>
+            <span className="text-xs text-text-tertiary">按渠道</span>
           </div>
           {pivotRows.length > 0 ? (
             <PivotTable rows={pivotRows} />
           ) : (
-            <p className="py-4 text-center text-xs text-ink-400">暂无下钻数据</p>
+            <p className="py-4 text-center text-xs text-text-tertiary">暂无下钻数据</p>
           )}
         </div>
 
@@ -269,11 +269,11 @@ export function WorkbenchPage() {
         <div className="card p-3">
           <span className="card-title">因果证据链</span>
           <ul className="mt-2 space-y-1 text-xs">
-            {causalLinks.length === 0 && <li className="text-ink-400">暂无外生事件</li>}
+            {causalLinks.length === 0 && <li className="text-text-tertiary">暂无外生事件</li>}
             {causalLinks.map((link) => (
               <li key={link.name} className="flex justify-between gap-2">
-                <span className="text-ink-600">{link.name}</span>
-                <span className={link.role === "external" ? "text-amber-600" : "text-ink-900"}>
+                <span className="text-text-secondary">{link.name}</span>
+                <span className={link.role === "external" ? "text-amber-600" : "text-text-primary"}>
                   {(link.contribution * 100).toFixed(1)}%
                 </span>
               </li>

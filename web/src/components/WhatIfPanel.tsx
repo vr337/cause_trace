@@ -52,7 +52,7 @@ export function WhatIfPanel({ sessionId, baselineValue, elasticities }: Props) {
 
   if (factorNames.length === 0) {
     return (
-      <p className="py-4 text-center text-xs text-ink-400">
+      <p className="py-4 text-center text-xs text-text-tertiary">
         归因结论锁定可干预因子后，可在此调节情景参数
       </p>
     );
@@ -62,9 +62,9 @@ export function WhatIfPanel({ sessionId, baselineValue, elasticities }: Props) {
     <div className="space-y-3">
       {factorNames.map((name) => (
         <label key={name} className="block">
-          <span className="flex items-center justify-between text-xs text-ink-600">
+          <span className="flex items-center justify-between text-xs text-text-secondary">
             <span>{name}</span>
-            <span className="font-mono text-ink-900">
+            <span className="font-mono text-text-primary">
               ×{(factors[name] ?? 1).toFixed(2)}
             </span>
           </span>
@@ -74,7 +74,7 @@ export function WhatIfPanel({ sessionId, baselineValue, elasticities }: Props) {
             max={1.5}
             step={0.05}
             value={factors[name] ?? 1}
-            className="mt-1 w-full accent-ink-900"
+            className="mt-1 w-full accent-text-primary"
             onChange={(event) => {
               setFactor(name, Number(event.target.value));
               scheduleRecompute();
@@ -97,17 +97,17 @@ export function WhatIfPanel({ sessionId, baselineValue, elasticities }: Props) {
         {scenarios.map((scenario) => (
           <div
             key={scenario.scenario_name}
-            className="flex items-center justify-between rounded border border-ink-200 px-2 py-1.5 text-xs"
+            className="flex items-center justify-between rounded border border-border px-2 py-1.5 text-xs"
           >
-            <span className="text-ink-600">{scenario.scenario_name}</span>
-            <span className={scenario.delta < 0 ? "text-fall" : "text-rise"}>
+            <span className="text-text-secondary">{scenario.scenario_name}</span>
+            <span className={scenario.delta < 0 ? "text-success" : "text-danger"}>
               {(scenario.delta_rate * 100).toFixed(1)}%
             </span>
           </div>
         ))}
       </div>
 
-      {pending && <p className="text-xs text-ink-400">重算中…</p>}
+      {pending && <p className="text-xs text-text-tertiary">重算中…</p>}
       {error && <p className="text-xs text-amber-600">{error}</p>}
     </div>
   );
